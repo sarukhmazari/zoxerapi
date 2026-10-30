@@ -1,0 +1,31 @@
+name = "zoxer-media-api"
+main = "src/index.ts"
+compatibility_date = "2025-02-15"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+RATE_LIMIT_MAX_REQUESTS = "60"
+RATE_LIMIT_WINDOW_SECONDS = "60"
+MAX_URL_LENGTH = "2048"
+MAX_BODY_SIZE_BYTES = "1048576"
+REQUEST_TIMEOUT_MS = "10000"
+
+# Note on Secrets:
+# Sensitive values such as API_SECRET_KEY, YOUTUBE_API_KEY, and INSTAGRAM_ACCESS_TOKEN
+# MUST NOT be placed in this file. Set them using:
+#   npx wrangler secret put API_SECRET_KEY
+#   npx wrangler secret put YOUTUBE_API_KEY
+
+# Optional Temporary Storage (Cloudflare R2):
+# To enable R2 temporary storage for media caching or staging, create a bucket:
+#   npx wrangler r2 bucket create zoxer-media-cache
+# Then uncomment the following block:
+# [[r2_buckets]]
+# binding = "MEDIA_BUCKET"
+# bucket_name = "zoxer-media-cache"
+
+# Optional Cloudflare Queues for Asynchronous Background Processing:
+# [[queues.producers]]
+# binding = "MEDIA_QUEUE"
+# queue = "zoxer-media-queue"

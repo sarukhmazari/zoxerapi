@@ -1,0 +1,27 @@
+# ==============================================================================
+# Zoxer Media API - Local Development Environment Variables (.dev.vars)
+# Copy this file to .dev.vars for local testing with `wrangler dev`
+# NEVER COMMIT .dev.vars WITH REAL SECRETS TO VERSION CONTROL!
+# ==============================================================================
+
+# Private API Key for authenticating the WhatsApp bot client
+# In production, set via: npx wrangler secret put API_SECRET_KEY
+API_SECRET_KEY=dev_secret_key_change_me_in_production_32chars
+
+# Environment Mode (development | staging | production)
+ENVIRONMENT=development
+
+# Rate Limiting Configurations (Requests per minute per IP/Client)
+RATE_LIMIT_MAX_REQUESTS=60
+RATE_LIMIT_WINDOW_SECONDS=60
+
+# Maximum allowed URL length and request payload size
+MAX_URL_LENGTH=2048
+MAX_BODY_SIZE_BYTES=1048576
+
+# Request Timeout for external provider requests (in milliseconds)
+REQUEST_TIMEOUT_MS=10000
+
+# Optional Provider Credentials (for authenticated or enhanced quota retrieval)
+# YOUTUBE_API_KEY=your_optional_youtube_data_api_v3_key
+# INSTAGRAM_ACCESS_TOKEN=your_optional_meta_graph_api_token
