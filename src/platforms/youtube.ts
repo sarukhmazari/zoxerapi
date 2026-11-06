@@ -1,6 +1,7 @@
 import { PlatformAdapter, DownloadOptions } from './platform.interface';
 import { Env, MetadataResult, MediaInfo, DownloadResult, PlatformCapabilities, PlatformType } from '../types';
 import { SafeLogger } from '../utils/logger';
+import { resolveYouTubeDownload } from '../utils/media-resolver';
 
 // ISO 8601 duration parser (e.g. PT4M13S -> 253 seconds)
 function parseISO8601Duration(durationStr: string): number | null {
@@ -59,10 +60,8 @@ export class YouTubeAdapter implements PlatformAdapter {
   getCapabilities(): PlatformCapabilities {
     return {
       metadata: true,
-      direct_download: false,
+      direct_download: true,
       requires_official_token: false,
-      terms_restriction_note:
-        'Direct YouTube binary extraction violates YouTube Terms of Service and DRM policies. Official metadata via oEmbed and Data API v3 is supported.',
     };
   }
 
@@ -135,25 +134,37 @@ export class YouTubeAdapter implements PlatformAdapter {
         }
       }
 
-      // 2. Fallback to official YouTube oEmbed API
-      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(canonicalUrl)}&format=json`;
-      const res = await fetch(oembedUrl, {
-        signal: controller.signal,
-        headers: { 'Accept': 'application/json' },
-      });
-
-      if (!res.ok) {
-        if (res.status === 404) {
-          throw new Error('YouTube video not found or private.');
+      // 2. Fallback to oEmbed API (try YouTube first, then noembed)
+      let oembedData: { title?: string; author_name?: string; author_url?: string; thumbnail_url?: string } | null = null;
+      try {
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(canonicalUrl)}&format=json`;
+        const res = await fetch(oembedUrl, {
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json' },
+        });
+        if (res.ok) {
+          oembedData = await res.json();
         }
-        throw new Error(`YouTube oEmbed provider error: HTTP ${res.status}`);
+      } catch (_) {}
+
+      if (!oembedData) {
+        try {
+          const noembedUrl = `https://noembed.com/embed?url=${encodeURIComponent(canonicalUrl)}`;
+          const nRes = await fetch(noembedUrl, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' },
+          });
+          if (nRes.ok) {
+            oembedData = await nRes.json();
+          }
+        } catch (_) {}
       }
 
-      const oembed = (await res.json()) as {
-        title: string;
-        author_name: string;
-        author_url: string;
-        thumbnail_url: string;
+      const oembed = oembedData || {
+        title: 'YouTube Video',
+        author_name: 'YouTube Creator',
+        author_url: canonicalUrl,
+        thumbnail_url: videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null,
       };
 
       return {
@@ -198,11 +209,43 @@ export class YouTubeAdapter implements PlatformAdapter {
     ];
   }
 
-  async download(url: string, _options: DownloadOptions, env: Env): Promise<DownloadResult> {
+  async download(url: string, options: DownloadOptions, env: Env): Promise<DownloadResult> {
     const meta = await this.getMetadata(url, env);
+    const timeoutMs = Number(env.REQUEST_TIMEOUT_MS) || 15000;
 
-    throw new Error(
-      'YouTube direct video download is restricted by YouTube Terms of Service and DRM. Direct binary extraction without authorization is not permitted. Only public metadata and authorized thumbnails can be provided.'
-    );
+    const resolved = await resolveYouTubeDownload(url, options.format, timeoutMs);
+    if (resolved && resolved.download_url) {
+      return {
+        title: resolved.title || meta.title,
+        thumbnail: resolved.thumbnail || meta.thumbnail,
+        author: resolved.author ? { name: resolved.author, url: null } : meta.author,
+        duration: meta.duration,
+        media: {
+          type: resolved.type,
+          format: resolved.format,
+          quality: 'best',
+          download_url: resolved.download_url,
+          requires_external_downloader: false,
+        },
+      };
+    }
+
+    if (options.format === 'image' && meta.thumbnail) {
+      return {
+        title: meta.title,
+        thumbnail: meta.thumbnail,
+        author: meta.author,
+        duration: meta.duration,
+        media: {
+          type: 'image',
+          format: 'jpg',
+          quality: 'high',
+          download_url: meta.thumbnail,
+          requires_external_downloader: false,
+        },
+      };
+    }
+
+    throw new Error('Unable to extract direct YouTube download stream at this moment. Please retry.');
   }
 }

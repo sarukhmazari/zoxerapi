@@ -8,17 +8,18 @@ interface RateLimitRecord {
 
 // In-isolate memory store for rate limiting
 const ipRateLimits = new Map<string, RateLimitRecord>();
+let lastCleanup = 0;
 
-// Periodic cleanup to avoid memory leak in long-lived isolates
-setInterval(() => {
-  const now = Date.now();
+function cleanupExpiredRecords(now: number): void {
+  if (now - lastCleanup < 60_000) return;
+  lastCleanup = now;
   for (const [ip, record] of ipRateLimits.entries()) {
     record.timestamps = record.timestamps.filter((ts) => now - ts < 120_000);
     if (record.timestamps.length === 0) {
       ipRateLimits.delete(ip);
     }
   }
-}, 60_000);
+}
 
 export function rateLimitMiddleware(): MiddlewareHandler<{ Bindings: Env }> {
   return async (c, next) => {
@@ -33,6 +34,7 @@ export function rateLimitMiddleware(): MiddlewareHandler<{ Bindings: Env }> {
       'anonymous-client';
 
     const now = Date.now();
+    cleanupExpiredRecords(now);
     let record = ipRateLimits.get(clientIp);
 
     if (!record) {

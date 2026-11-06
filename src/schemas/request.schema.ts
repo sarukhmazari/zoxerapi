@@ -32,7 +32,7 @@ export const downloadRequestSchema = z.object({
     })
     .min(1, 'URL cannot be empty.')
     .max(2048, 'URL exceeds maximum length of 2048 characters.'),
-  format: z.enum(['video', 'audio', 'image']).default('video'),
+  format: z.enum(['video', 'audio', 'image', 'spotify', 'slowed', 'sp', 'slow']).default('video'),
   quality: z.enum(['best', 'high', 'medium', 'low']).default('best'),
 });
 

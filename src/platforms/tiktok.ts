@@ -1,6 +1,7 @@
 import { PlatformAdapter, DownloadOptions } from './platform.interface';
 import { Env, MetadataResult, MediaInfo, DownloadResult, PlatformCapabilities, PlatformType } from '../types';
 import { validateSafeUrl } from '../utils/url-validator';
+import { resolveTikTokDownload } from '../utils/media-resolver';
 
 export class TikTokAdapter implements PlatformAdapter {
   readonly platform: PlatformType = 'tiktok';
@@ -36,10 +37,8 @@ export class TikTokAdapter implements PlatformAdapter {
   getCapabilities(): PlatformCapabilities {
     return {
       metadata: true,
-      direct_download: false,
+      direct_download: true,
       requires_official_token: false,
-      terms_restriction_note:
-        'Official TikTok metadata is supported via TikTok oEmbed API. Direct video binary extraction is restricted by TikTok terms and dynamic CDN access controls.',
     };
   }
 
@@ -153,6 +152,7 @@ export class TikTokAdapter implements PlatformAdapter {
 
   async download(url: string, options: DownloadOptions, env: Env): Promise<DownloadResult> {
     const meta = await this.getMetadata(url, env);
+    const timeoutMs = Number(env.REQUEST_TIMEOUT_MS) || 15000;
 
     if (options.format === 'image' && meta.thumbnail) {
       return {
@@ -170,8 +170,39 @@ export class TikTokAdapter implements PlatformAdapter {
       };
     }
 
-    throw new Error(
-      'TikTok video binary extraction is restricted by TikTok platform terms and anti-automation protections. Direct download of proprietary video binaries without authorization is prohibited. Metadata and authorized thumbnail image are accessible.'
-    );
+    const resolved = await resolveTikTokDownload(url, timeoutMs);
+    if (resolved && resolved.download_url) {
+      return {
+        title: resolved.title || meta.title,
+        thumbnail: resolved.thumbnail || meta.thumbnail,
+        author: meta.author,
+        duration: meta.duration,
+        media: {
+          type: 'video',
+          format: 'mp4',
+          quality: 'hd',
+          download_url: resolved.download_url,
+          requires_external_downloader: false,
+        },
+      };
+    }
+
+    if (meta.thumbnail) {
+      return {
+        title: meta.title,
+        thumbnail: meta.thumbnail,
+        author: meta.author,
+        duration: meta.duration,
+        media: {
+          type: 'image',
+          format: 'jpeg',
+          quality: 'best',
+          download_url: meta.thumbnail,
+          requires_external_downloader: false,
+        },
+      };
+    }
+
+    throw new Error('Unable to extract direct TikTok download stream at this moment. Please retry.');
   }
 }

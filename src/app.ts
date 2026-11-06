@@ -8,6 +8,9 @@ import { healthRoute } from './routes/health';
 import { detectRoute } from './routes/detect';
 import { metadataRoute } from './routes/metadata';
 import { downloadRoute } from './routes/download';
+import { spotifyRoute } from './routes/spotify';
+import { slowedRoute } from './routes/slowed';
+import { streamRoute } from './routes/stream';
 
 export function createApp(): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
@@ -34,12 +37,19 @@ export function createApp(): Hono<{ Bindings: Env }> {
     await next();
   });
 
-  // Public discovery & health routes
+  // Public discovery, health & audio stream routes
   app.route('/', healthRoute);
+  app.route('/api/stream', streamRoute);
 
   // Protected API routes: Require Bearer token authentication and sliding-window rate limit
   app.use('/api/*', rateLimitMiddleware());
   app.use('/api/*', authMiddleware());
+
+  // Mount specialized routes under /api
+  app.route('/api/spotify', spotifyRoute);
+  app.route('/api/slowed', slowedRoute);
+  app.route('/api/media', downloadRoute);
+  app.route('/api/v1/media', downloadRoute);
 
   // Mount versioned API routes under /api/v1
   app.route('/api/v1', detectRoute);

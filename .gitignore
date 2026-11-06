@@ -1,3 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+downloads/
+*.webm
+*.mp3
+*.mp4
+cookies.txt
+
 # Dependencies
 node_modules/
 .pnpm-store/

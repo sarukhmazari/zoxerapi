@@ -1,5 +1,6 @@
 import { PlatformAdapter, DownloadOptions } from './platform.interface';
 import { Env, MetadataResult, MediaInfo, DownloadResult, PlatformCapabilities, PlatformType } from '../types';
+import { resolveInstagramDownload } from '../utils/media-resolver';
 
 export class InstagramAdapter implements PlatformAdapter {
   readonly platform: PlatformType = 'instagram';
@@ -25,10 +26,8 @@ export class InstagramAdapter implements PlatformAdapter {
   getCapabilities(): PlatformCapabilities {
     return {
       metadata: true,
-      direct_download: false,
-      requires_official_token: true,
-      terms_restriction_note:
-        'Meta/Instagram restricts public scraping. Legitimate metadata retrieval requires an authorized Meta Graph API access token (INSTAGRAM_ACCESS_TOKEN). Direct video extraction violates Meta Platform Terms.',
+      direct_download: true,
+      requires_official_token: false,
     };
   }
 
@@ -124,11 +123,43 @@ export class InstagramAdapter implements PlatformAdapter {
     ];
   }
 
-  async download(url: string, _options: DownloadOptions, env: Env): Promise<DownloadResult> {
+  async download(url: string, options: DownloadOptions, env: Env): Promise<DownloadResult> {
     const meta = await this.getMetadata(url, env);
+    const timeoutMs = Number(env.REQUEST_TIMEOUT_MS) || 15000;
 
-    throw new Error(
-      'Instagram media binary extraction is prohibited by Meta Platform Terms and access controls. Direct unauthorized video extraction is not supported. Use official Meta Graph API integrations.'
-    );
+    const resolved = await resolveInstagramDownload(url, timeoutMs);
+    if (resolved && resolved.download_url) {
+      return {
+        title: resolved.title || meta.title,
+        thumbnail: resolved.thumbnail || meta.thumbnail,
+        author: meta.author,
+        duration: meta.duration,
+        media: {
+          type: resolved.type,
+          format: resolved.format,
+          quality: 'hd',
+          download_url: resolved.download_url,
+          requires_external_downloader: false,
+        },
+      };
+    }
+
+    if (meta.thumbnail) {
+      return {
+        title: meta.title,
+        thumbnail: meta.thumbnail,
+        author: meta.author,
+        duration: meta.duration,
+        media: {
+          type: 'image',
+          format: 'jpeg',
+          quality: 'best',
+          download_url: meta.thumbnail,
+          requires_external_downloader: false,
+        },
+      };
+    }
+
+    throw new Error('Unable to extract direct Instagram media stream at this moment. Please retry.');
   }
 }

@@ -48,7 +48,7 @@ describe('Metadata & Download Service Endpoints', () => {
       expect(data.data.title).toBe('Never Gonna Give You Up');
       expect(data.data.author.name).toBe('Rick Astley');
       expect(data.data.capabilities.metadata).toBe(true);
-      expect(data.data.capabilities.direct_download).toBe(false);
+      expect(data.data.capabilities.direct_download).toBe(true);
     });
 
     it('successfully retrieves TikTok metadata via oEmbed mock', async () => {
@@ -130,15 +130,33 @@ describe('Metadata & Download Service Endpoints', () => {
   });
 
   describe('POST /api/v1/download', () => {
-    it('returns 403 CAPABILITY_UNSUPPORTED for direct YouTube video downloads', async () => {
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          title: 'Never Gonna Give You Up',
-          author_name: 'Rick Astley',
-        }),
-      } as unknown as Response);
+    it('successfully processes direct YouTube media download', async () => {
+      globalThis.fetch = vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const urlStr = typeof input === 'string' ? input : input.toString();
+        if (urlStr.includes('youtube?url=')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              status: true,
+              title: 'Never Gonna Give You Up',
+              author: 'Rick Astley',
+              thumbnail: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+              mp4: 'https://vidsnap.proxy.test/video.mp4',
+              mp3: 'https://vidsnap.proxy.test/audio.mp3',
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            title: 'Never Gonna Give You Up',
+            author_name: 'Rick Astley',
+            thumbnail_url: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+          }),
+        };
+      });
 
       const res = await app.request('/api/v1/download', {
         method: 'POST',
@@ -150,11 +168,11 @@ describe('Metadata & Download Service Endpoints', () => {
         }),
       }, mockEnv);
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
       const data = await res.json() as any;
-      expect(data.success).toBe(false);
-      expect(data.error.code).toBe('CAPABILITY_UNSUPPORTED');
-      expect(data.error.message).toContain('Terms of Service');
+      expect(data.success).toBe(true);
+      expect(data.data.media.download_url).toBe('https://vidsnap.proxy.test/video.mp4');
+      expect(data.data.media.type).toBe('video');
     });
 
     it('returns authorized thumbnail image for TikTok when format is image', async () => {
