@@ -800,20 +800,13 @@ def serve_download(filename):
 
 # ----------------- GRADIO + FASTAPI MOUNT FOR HUGGING FACE SPACES -----------------
 try:
+    import spaces
     import gradio as gr
     from a2wsgi import WSGIMiddleware
     from fastapi import FastAPI
     import uvicorn
 
-    try:
-        import spaces
-        def gpu_decorator(fn):
-            return spaces.GPU(fn)
-    except Exception:
-        def gpu_decorator(fn):
-            return fn
-
-    @gpu_decorator
+    @spaces.GPU
     def gradio_downloader(query_or_url: str, format_choice: str):
         if not query_or_url or not query_or_url.strip():
             return {"error": "Please enter a valid URL or song name."}
