@@ -49,11 +49,7 @@ class MediaDownloader:
             "cachedir": False,
             "retries": 3,
             "fragment_retries": 3,
-            "extractor_args": {
-                "youtube": {
-                    "player_client": ["tv_samsung", "visionos", "web"]
-                }
-            }
+            "remote_components": ["ejs:github"],
         }
         cookies = find_cookies_path()
         if cookies:
