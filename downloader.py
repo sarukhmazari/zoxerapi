@@ -51,7 +51,7 @@ class MediaDownloader:
             "fragment_retries": 3,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android", "ios", "web"]
+                    "player_client": ["tv_samsung", "visionos", "web"]
                 }
             }
         }
