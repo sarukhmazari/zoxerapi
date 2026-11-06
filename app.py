@@ -798,58 +798,12 @@ def serve_download(filename):
         as_attachment=False
     )
 
-# ----------------- GRADIO + FASTAPI MOUNT FOR HUGGING FACE SPACES -----------------
-try:
-    import spaces
-    import gradio as gr
-    from a2wsgi import WSGIMiddleware
-    from fastapi import FastAPI
-    import uvicorn
-
-    @spaces.GPU
-    def gradio_downloader(query_or_url: str, format_choice: str):
-        if not query_or_url or not query_or_url.strip():
-            return {"error": "Please enter a valid URL or song name."}
-        try:
-            fmt = format_choice.lower()
-            if fmt == "mp3 (audio)":
-                return downloader.download_audio(query_or_url)
-            elif fmt == "spotify":
-                return downloader.download_spotify(query_or_url)
-            elif fmt == "slowed + reverb":
-                return downloader.download_slowed(query_or_url)
-            else:
-                return downloader.download_video(query_or_url)
-        except Exception as e:
-            return {"error": str(e)}
-
-    with gr.Blocks(title="Zoxer Media API") as demo:
-        gr.Markdown("# ⚡ Zoxer Media API")
-        gr.Markdown("High-performance media backend for WhatsApp bots (YouTube, Songs, Reels, TikTok, Spotify).")
-        with gr.Row():
-            url_in = gr.Textbox(label="Media URL or Song Name", placeholder="e.g. Believer, or https://www.instagram.com/reel/...")
-            fmt_in = gr.Dropdown(choices=["MP3 (Audio)", "MP4 (Video)", "Spotify", "Slowed + Reverb"], value="MP3 (Audio)", label="Format")
-        btn = gr.Button("Download / Resolve Media", variant="primary")
-        out = gr.JSON(label="Result JSON")
-        btn.click(gradio_downloader, inputs=[url_in, fmt_in], outputs=out)
-
-    fastapi_app = FastAPI()
-    fastapi_app.mount("/api", WSGIMiddleware(app))
-    app_asgi = gr.mount_gradio_app(fastapi_app, demo, path="/")
-    HAS_GRADIO = True
-except Exception as e:
-    HAS_GRADIO = False
-    print(f"[Notice] Running in standard WSGI mode ({e})")
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 7860))
+    port = int(os.environ.get("PORT", 5050))
     print(f"============================================================")
     print(f" [*] Zoxer Media Engine running on port {port}")
     print(f" [*] Song endpoint:     http://0.0.0.0:{port}/api/song?q=...")
     print(f" [*] Video endpoint:    http://0.0.0.0:{port}/api/video?q=...")
     print(f" [*] Bot v1 endpoint:   http://0.0.0.0:{port}/api/v1/download")
     print(f"============================================================")
-    if HAS_GRADIO:
-        uvicorn.run(app_asgi, host="0.0.0.0", port=port)
-    else:
-        app.run(host="0.0.0.0", port=port, threaded=True)
+    app.run(host="0.0.0.0", port=port, threaded=True)

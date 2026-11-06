@@ -7,29 +7,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up non-root user required by Hugging Face Spaces (UID 1000)
-RUN useradd -m -u 1000 user
-USER user
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH \
-    PORT=7860 \
-    PYTHONUNBUFFERED=1
-
-WORKDIR $HOME/app
+WORKDIR /app
 
 # Install Python requirements
-COPY --chown=user:user requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
-COPY --chown=user:user . .
+COPY . .
 
-# Create downloads folder with permissions
+# Create downloads folder
 RUN mkdir -p downloads
 
-# Expose standard Hugging Face port
-EXPOSE 7860
+ENV PORT=5050
+EXPOSE 5050
 
-# Run with Gunicorn production WSGI server
-CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--workers", "2", "--timeout", "180", "app:app"]
+# Run with Gunicorn production WSGI server, dynamically using the PORT assigned by Render/Railway
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5050} --workers 2 --timeout 180 app:app"]

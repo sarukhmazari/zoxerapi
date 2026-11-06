@@ -1,14 +1,3 @@
----
-title: Zoxer Media API
-emoji: ⚡
-colorFrom: blue
-colorTo: indigo
-sdk: gradio
-sdk_version: 5.0.0
-app_file: app.py
-pinned: false
----
-
 # Zoxer Media API
 
 [![Runtime](https://img.shields.io/badge/Runtime-Cloudflare%20Workers-orange.svg)](https://workers.cloudflare.com/)
